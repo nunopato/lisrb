@@ -28,11 +28,11 @@ int main(int argc, char** argv) {
   mpc_parser_t* Lisrb    = mpc_new("lisrb");
   
   mpca_lang(MPCA_LANG_DEFAULT, 
-      "                                                    \
-        number   : /-?[0-9]+/ ;                            \
-        operator : '+' | '-' | '*' | '/' ;                 \
-        expr     : <number> | '(' <operator> <expr>+ ')' ; \
-        lisrb    : /^/ <operator> <expr>+ /$/ ;            \
+      "                                                                                  \
+        number   : /-?[0-9]+/ ;                                                          \
+        operator : '+' | '-' | '*' | '/' | '%' | \"add\" | \"sub\" | \"mul\" | \"div\" ; \
+        expr     : <number> | '(' <operator> <expr>+ ')' ;                               \
+        lisrb    : /^/ <operator> <expr>+ /$/ ;                                          \
       ",
       Number, Operator, Expr, Lisrb);
 
