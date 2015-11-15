@@ -21,7 +21,6 @@ void add_history(char* unused) {}
 #endif
 
 enum { LVAL_NUM, LVAL_ERR};
-
 enum { LERR_DIV_ZERO, LERR_BAD_OP, LERR_BAD_NUM };
 
 typedef struct {
@@ -47,6 +46,7 @@ lval lval_err(int x) {
 void lval_print(lval v) {
   switch (v.type) {
     case LVAL_NUM: printf("%li", v.num); break;
+
     case LVAL_ERR:
       if (v.err == LERR_DIV_ZERO) {
         printf("Error: division by zero!");
@@ -61,42 +61,53 @@ void lval_print(lval v) {
   }
 }
 
+void lval_println(lval v) { lval_print(v); putchar('\n'); }
+
 long expo(long base, long exponent) {
   if (exponent == 1) { return base; }
   return base * expo(base, exponent - 1);
 }
 
-long eval_op(long x, char* op, long y) {
-  if (strcmp(op, "+") == 0) { return x + y; }
-  if (strcmp(op, "-") == 0) { return x - y; }
-  if (strcmp(op, "/") == 0) { return x / y; }
-  if (strcmp(op, "*") == 0) { return x * y; }
-  if (strcmp(op, "%") == 0) { return x % y; }
-  if (strcmp(op, "^") == 0) { return expo(x, y); }
+lval eval_op(lval x, char* op, lval y) {
+  if (x.type == LVAL_ERR) { return x; }
+  if (y.type == LVAL_ERR) { return y; }
+
+
+  if (strcmp(op, "+") == 0) { return lval_num(x.num + y.num); }
+  if (strcmp(op, "-") == 0) { return lval_num(x.num - y.num); }
+  if (strcmp(op, "/") == 0) {
+    return y.num == 0 ? lval_err(LERR_DIV_ZERO) : lval_num(x.num / y.num);
+  }
+
+  if (strcmp(op, "*") == 0) { return lval_num(x.num * y.num); }
+  if (strcmp(op, "%") == 0) { return lval_num(x.num % y.num); }
+
+  if (strcmp(op, "^") == 0) { return lval_num(expo(x.num, y.num)); }
 
   if (strcmp(op, "min") == 0) {
-    if (x <= y) { return x; }
-    return y;
+    if (x.num <= y.num) { return lval_num(x.num); }
+    return lval_num(y.num);
   }
   if (strcmp(op, "max") == 0) {
-    if (x >= y) { return x; }
-    return y;
+    if (x.num >= y.num) { return lval_num(x.num); }
+    return lval_num(y.num);
   }
 
-  return 0;
+  return lval_err(LERR_BAD_OP);
 }
 
-long eval(mpc_ast_t* t) {
+lval eval(mpc_ast_t* t) {
 
   // parsing a leaf here
   if (strstr(t->tag, "number")) {
-    return atoi(t->contents);
+    errno = 0;
+    long x = strtol(t->contents, NULL, 10);
+    return errno != ERANGE ? lval_num(x) : lval_err(LERR_BAD_NUM);
   }
 
   // the operator is always the second child
   char* op = t->children[1]->contents;
-
-  long x = eval(t->children[2]);
+  lval x = eval(t->children[2]);
 
   int i = 3;
   while (strstr(t->children[i]->tag, "expr")) {
@@ -134,8 +145,8 @@ int main(int argc, char** argv) {
     mpc_result_t r;
     if (mpc_parse("<stdin>", input, Lisrb, &r)) {
 
-      long result = eval(r.output);
-      printf("%li\n", result);
+      lval result = eval(r.output);
+      lval_println(result);
       mpc_ast_delete(r.output);
 
     } else {
